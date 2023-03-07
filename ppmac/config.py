@@ -6,7 +6,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-hostname = os.environ.get('PPMAC_HOST', '10.3.2.115')
+hostname = os.environ.get('PPMAC_HOST', '10.17.34.94')
 port = int(os.environ.get('PPMAC_PORT', '22'))
 username = os.environ.get('PPMAC_USER', 'root')
 password = os.environ.get('PPMAC_PASS', 'deltatau')
