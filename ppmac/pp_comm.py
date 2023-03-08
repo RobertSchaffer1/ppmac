@@ -640,6 +640,26 @@ class GpasciiChannel(ShellChannel):
 
         return errno
 
+    def run_with_loop_closing(self, coord_sys, program, variables=[],
+                     active_var=None, verbose=True, change_callback=None,
+                     read_timeout=5.0, cancel_signal=None,
+                     stop_on_cancel=True):
+        """
+        Run a program immediately after closing the motor loops.
+        """
+        motor_system = get_coords(self)
+        if coord_sys in motor_system:
+            motors_to_close = motor_system[coord_sys]
+        else:
+            print("Coordinate system ill-defined")
+            return
+        close_command = "/#".join(str(e) for e in motors_to_close)
+        self.send_line("#" + close_command + "/")
+        self.run_and_wait(coord_sys, program, variables=[],
+                     active_var=None, verbose=True, change_callback=None,
+                     read_timeout=5.0, cancel_signal=None,
+                     stop_on_cancel=True):
+
     def send_program(self, coord, prog_num, motors={},
                      macros={}, filename=None, script=None, run=False,
                      verbose=False,
@@ -787,6 +807,36 @@ class GpasciiChannel(ShellChannel):
 
                 if (time.time() - t0) > timeout:
                     raise TimeoutError()
+
+    def generate_linear_program(self, start_point, end_point, coords, stops,
+                                dwell_time=100, ta=1, ts=0, tm=50, f=None):
+        """
+        Generates a linear program to be sent to the power pmac, moving from 
+        start_point to end_point with *stops* total stops (including 
+        beginning and endpoints) each of which lasts for *dwell_time*
+        milliseconds. Optional parameters set the desired acceleration time
+        (ta), s-curve (ts), movement time (tm) and/or velocity (f). If 
+        velocity and movement time are both defined, velocity takes 
+        precedence.
+        """
+        assert(len(coords) == len(start_point))
+        assert(len(coords) == len(end_point))
+        if int(ta) < 1:
+            ta = 1
+        prog_out = ['linear', 'abs', f'ta{ta}', f'ts{ts}', f'tm{tm}']
+        if f:
+            prog_out.append(f'f{f}')
+        dists = [(int(end_point[i]) - int(start_point[i]))/(int(stops)-1) 
+                for i in range(len(coords))]
+        for j in range(int(stops)+1):
+            message = ''
+            for i, coord in enumerate(coords):
+                message += coord
+                message += str(int(start_point[i])+int(dists[i])*j)
+            prog_out.append(message)
+            if j != int(stops):
+                prog_out.append(f'dwell{int(dwell_time)}')
+        return(prog_out)
 
 
 class PPComm(object):
